@@ -14,9 +14,6 @@ var server = express.createServer();
 server.get('/', function(req, res) {
     res.render('index.haml', {locals: {title: 'The Joy Project'}});
 });
-server.get('/foo', function(req, res) {
-    res.send('foo');
-});
 server.listen(8080);
 
 /**
@@ -34,7 +31,7 @@ socket.on('connection', function(client){
             access_token_secret: 'fcoeXCzFvZaDYScVyJRuqEpy5jC9SjS8U6V5aZkYptE'
     });
 
-    var track = 'life'
+    var track = 'i feel,sad,depressed,afraid'
 
     /**
      * Define stream behavior
@@ -45,7 +42,9 @@ socket.on('connection', function(client){
          */
         stream.on('data', function (data) {
                 sys.puts(sys.inspect(data.text));
-                client.send(data.text);
+                if (data.text.indexOf('i feel')  != -1) {
+                    client.send(data.text);
+                }
         });
     });
     
