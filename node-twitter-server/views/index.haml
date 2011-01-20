@@ -1,1 +1,14 @@
-<h1>this is view</h1>
+#message-container
+:javascript
+    console.log('success!');
+    var socket = new io.Socket();
+    socket.connect();
+    socket.on('connect', function(){ 
+      socket.send('Client notified: connected');
+    }) 
+    socket.on('message', function(data){ 
+      $('#message-container').prepend('<p>' + data + '</p>');
+    })
+    socket.on('disconnect', function(){
+        socket.send('disconnecting!')
+    })
