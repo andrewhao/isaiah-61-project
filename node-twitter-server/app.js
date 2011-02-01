@@ -31,7 +31,7 @@ socket.on('connection', function(client){
             access_token_secret: 'fcoeXCzFvZaDYScVyJRuqEpy5jC9SjS8U6V5aZkYptE'
     });
 
-    var track = 'i feel,sad,depressed,afraid'
+    var track = "sad,depressed,afraid,trapped,lonely";
 
     /**
      * Define stream behavior
@@ -42,7 +42,8 @@ socket.on('connection', function(client){
          */
         stream.on('data', function (data) {
                 sys.puts(sys.inspect(data.text));
-                if (data.text.indexOf('i feel')  != -1) {
+                if (data.text.toLowerCase().indexOf('i\'m')  != -1 ||
+                    data.text.toLowerCase().indexOf('feel')  != -1) {
                     client.send(data.text);
                 }
         });
