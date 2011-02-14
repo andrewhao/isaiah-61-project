@@ -4,18 +4,43 @@ var sys = require('sys'),
     io = require('socket.io'),
     util = require('util'),
     EE = require('events').EventEmitter,
-    chainGang = require('chain-gang'),
     twitter = require('twitter');
 
 /**
+ * QueueBoss
+ * Drains from a set of queues in a (random?) and fair manner.
+ */
+function QueueBoss(queueList, webclient) {
+    EE.call(this);
+    this.queueList = queueList;
+    this.currentIdx = 0;
+    this.client = webclient;
+}
+util.inherits(QueueBoss, EE);
+
+// Shifts the queue, sets up the next one to be shifted next. 
+// TODO: randomize
+QueueBoss.prototype.drain = function() {
+    var tw = this.queueList[this.currentIdx].shift();
+    this.client.send(this.currentIdx + ": " + tw);
+    this.currentIdx = (this.currentIdx + 1) % this.queueList.length;
+}
+
+/**
  * TweetQueue
+ * A simple queue, modified to be evented and emit a "low"
+ * event when under a threshold of n items.
  */
 function TweetQueue() {
     EE.call(this);
     this.queue = [];
-    this.lowThreshold = 10; // The # of queue items the queue contains
-                            // or less where a 'low' event will be emitted by
-                            // the queue.
+    // This queue shouldn't be pushed onto because another
+    // fill request is in session.
+    this.lock = false;
+    // The # of queue items the queue contains
+    // or less where a 'low' event will be emitted by
+    // the queue.
+    this.lowThreshold = 10; 
 }
 util.inherits(TweetQueue, EE);
 
@@ -56,19 +81,6 @@ var twit = new twitter({
     access_token_secret: 'fcoeXCzFvZaDYScVyJRuqEpy5jC9SjS8U6V5aZkYptE'
 });
     
-// Create a driver loop that will push out a tweet every n seconds
-//setInterval(3000, function() {
-    
-//})
-
-
-// In-process queue:
-// http://techno-weenie.net/2010/7/13/in-process-node-queues/
-// https://github.com/technoweenie/node-chain-gang
-// We will use this to trigger a twitter search when a tweet category is nearly
-// drained.
-// var chain = chainGang.create();
-
 // Simple web server
 var server = express.createServer();
 
@@ -84,39 +96,78 @@ server.listen(8080);
  * Socket.io
  */
 var socket = io.listen(server); 
-socket.on('connection', function(client){
+socket.on('connection', function(client){    
+    var painQueue = new TweetQueue();
+    var griefQueue = new TweetQueue();
+    var justiceQueue = new TweetQueue();
+    var oaklandQueue = new TweetQueue();
     
-    var tweetQueue = new TweetQueue();
+    var queueBoss = new QueueBoss([painQueue, griefQueue, justiceQueue, oaklandQueue], client);
+    
+    var queueSpec = {
+        pain: {
+            queue: painQueue,
+            kw: ["sad","depressed","afraid","trapped","lonely","grief","cry"],
+            kw_req: "i feel",
+            ignore: "RT"
+        },
+        grief: {
+            queue: griefQueue,
+            kw: ["passed away", "dead","death","decease","grief","RIP", "R.I.P.", "rest in peace"],
+            kw_req: "",
+            ignore: "RT",
+        },
+        oakland: {
+            queue: oaklandQueue,
+            kw: ["oakland"],
+            kw_req: "",
+            ignore: "RT",
+        },
+        justice: {
+            queue: justiceQueue,
+            kw: ["injustice","justice","rape","violence","assault","murder","slavery","corruption","mugged"],
+            kw_req: "",
+            ignore: "RT",
+        }
+    };
     
     var subject_kw = ["i feel", "i want", "i need", "i%27m"];
-    var pain_kw = ["sad","depressed","afraid","trapped","lonely","grief","cry"];
-    var pain_kw_reqd = ["feel"];
-    var grief_kw = ["passed","dead","death","gone","decease","dying","demise","grief"];
-    var oakland_kw = ["oakland"];
-    var justice_kw = ["injustice","justice","rape","violence","assault","murder","slavery","corruption","mugged"];
 
     setInterval(function() {
-        sys.puts('shifting queue. current length: ' + tweetQueue.queue.length)
-        var tw = tweetQueue.shift();
-        client.send('sending: ' + tw);
-    }, 3000)
-
-    tweetQueue.on('low', function (queueLength) {
-        if (queueLength == 0 ||
-            queueLength == 10) {
-            /**
-             * Do a twitter search
-             */
-            twit.search(pain_kw.join(' OR ') + ' AND ' + pain_kw_reqd.join(' AND '), function(data) {
-                for (var i in data.results) {
-                    tweetQueue.push(data.results[i].text);
-                    sys.puts('pushing tweet: ' + sys.inspect(data.results[i].text));
-                    //client.send('searched and found: ' + sys.inspect(data.results[i].text));
+        queueBoss.drain();
+    }, 1000)
+    
+    // Set up listeners for each queue.
+    for (var qtype in queueSpec) {
+        // Module pattern
+        // http://meshfields.de/event-listeners-for-loop/
+        // Binds the queue spec to the scope in the closure.
+        (function(qtype) {
+            var qd = queueSpec[qtype];
+            qd.queue.on('low', function (queueLength) {
+                if (!qd.queue.lock) {
+                    // Set the lock.
+                    qd.queue.lock = true;
+                    /**
+                     * Do a twitter search
+                     */
+                    twit.search(qd.kw_req + " (" + qd.kw.join(' OR ') + ")", {lang: 'en', rpp: 30}, function(data) {
+                        for (var i in data.results) {
+                            var text = data.results[i].text;
+                            if (text.indexOf(qd.ignore) == -1) {
+                                qd.queue.push(data.results[i].text);
+                                sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i].text));
+                                sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)
+                            }
+                        }
+                    });
+                    // Undo the lock
+                    qd.queue.lock = false;
                 }
             });
-        }
-    });
-
+        }) (qtype);
+    }
+            
     /**
      * Define stream behavior: Justice
      */
@@ -147,9 +198,9 @@ socket.on('connection', function(client){
   */  
     // new client is here! 
     client.on('message', function(data){
-        sys.puts(sys.inspect('message recv:' + data));
+        sys.puts(sys.inspect('client said:' + data));
     }); 
     client.on('disconnect', function(){
-        sys.puts(sys.inspect('client disconnected'))
+        sys.puts(sys.inspect('client disconnected.'))
     });
 });
