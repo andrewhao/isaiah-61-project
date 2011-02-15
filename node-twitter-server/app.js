@@ -100,14 +100,15 @@ var dummy_i = 0;
 var arduino = net.createServer(function (stream) {
     stream.setEncoding('utf8');
     stream.on('connect', function() {
-        stream.write('Connected to twitter server.\0');
+        //stream.write('Connected to twitter server.\0');
         sys.puts('Connection detected from Arduino: ' + sys.inspect(stream, false));
         
-        // Test function: send a command every second
+        // Test function: send a byte-command every second.
+        // Command is a byte terminated by a NULL.
         setInterval(function () {
             sys.puts('Sending dummy i: ' + dummy_i);
-            stream.write(dummy_i + '\0');
-            dummy_i = (dummy_i + 1) % 3;
+            stream.write((dummy_i + 10) + '\0');
+            dummy_i = (dummy_i + 1) % 2;
         }, 1000)
     });
     stream.on('data', function(data) {
