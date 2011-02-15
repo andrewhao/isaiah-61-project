@@ -3,6 +3,7 @@ var sys = require('sys'),
     express = require('express'),
     io = require('socket.io'),
     util = require('util'),
+    net = require('net'),
     EE = require('events').EventEmitter,
     twitter = require('twitter');
 
@@ -93,10 +94,38 @@ server.get('/', function(req, res) {
 server.listen(8080);
 
 /**
+ * Socket interface to Arduino script.
+ */
+var dummy_i = 0;
+var arduino = net.createServer(function (stream) {
+    stream.setEncoding('utf8');
+    stream.on('connect', function() {
+        stream.write('Connected to twitter server.\0');
+        sys.puts('Connection detected from Arduino: ' + sys.inspect(stream, false));
+        
+        // Test function: send a command every second
+        setInterval(function () {
+            sys.puts('Sending dummy i: ' + dummy_i);
+            stream.write(dummy_i + '\0');
+            dummy_i = (dummy_i + 1) % 3;
+        }, 1000)
+    });
+    stream.on('data', function(data) {
+        sys.puts('Echoing data from arduino client: ' + sys.inspect(data));
+        stream.write('Echo: ' + data + '\0');
+    });
+    stream.on('end', function() {
+        stream.end();
+    })
+});
+arduino.listen(7000);
+
+
+/**
  * Socket.io
  */
-var socket = io.listen(server); 
-socket.on('connection', function(client){    
+var websocket = io.listen(server); 
+websocket.on('connection', function(client){    
     var painQueue = new TweetQueue();
     var griefQueue = new TweetQueue();
     var justiceQueue = new TweetQueue();
