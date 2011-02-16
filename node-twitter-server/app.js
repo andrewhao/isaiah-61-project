@@ -22,8 +22,8 @@ util.inherits(QueueBoss, EE);
 // Shifts the queue, sets up the next one to be shifted next. 
 // TODO: randomize
 QueueBoss.prototype.drain = function() {
-    var tw = this.queueList[this.currentIdx].shift();
-    this.client.send(this.currentIdx + ": " + tw);
+    var data = this.queueList[this.currentIdx].shift();
+    this.client.send(data);
     this.currentIdx = (this.currentIdx + 1) % this.queueList.length;
 }
 
@@ -85,6 +85,10 @@ var twit = new twitter({
 // Simple web server
 var server = express.createServer();
 
+server.configure(function() {
+    server.use(express.staticProvider(__dirname + '/public'));
+});
+
 /**
  * HTTP server
  */
@@ -97,6 +101,7 @@ server.listen(8080);
  * Socket interface to Arduino script.
  */
 var dummy_i = 0;
+var pins = [3, 5, 6, 9]
 var arduino = net.createServer(function (stream) {
     stream.setEncoding('utf8');
     stream.on('connect', function() {
@@ -107,9 +112,9 @@ var arduino = net.createServer(function (stream) {
         // Command is a byte terminated by a NULL.
         setInterval(function () {
             sys.puts('Sending dummy i: ' + dummy_i);
-            stream.write((dummy_i + 10) + '\0');
-            dummy_i = (dummy_i + 1) % 2;
-        }, 1000)
+            stream.write(pins[dummy_i] + '\0');
+            dummy_i = (dummy_i + 1) % 4;
+        }, 100)
     });
     stream.on('data', function(data) {
         sys.puts('Echoing data from arduino client: ' + sys.inspect(data));
@@ -185,8 +190,8 @@ websocket.on('connection', function(client){
                         for (var i in data.results) {
                             var text = data.results[i].text;
                             if (text.indexOf(qd.ignore) == -1) {
-                                qd.queue.push(data.results[i].text);
-                                sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i].text));
+                                qd.queue.push(data.results[i]);
+                                sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i]));
                                 sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)
                             }
                         }

@@ -4,8 +4,7 @@ import firmata
 # Set up the Arduino interfaces.
 serial_addr = '/dev/tty.usbmodem3d11'
 a = firmata.Arduino(serial_addr)
-#a.pin_mode(10, firmata.PWM)
-#a.pin_mode(9, firmata.PWM)
+a.pin_mode(10, firmata.PWM)
 a.pin_mode(11, firmata.PWM)
 print ('Connecting to bootloader. Please wait.')
 a.delay(2)
@@ -23,7 +22,7 @@ cur_pin = 13
 # and drains the socket and switches pinouts.
 while True:
     # read 2-byte pin command at a time (pin + NULL).
-    data = s.recv(3);
+    data = s.recv(2);
     if data:
         print 'pin to pulse is: %s' % data[0:-1]
         a.analog_write(cur_pin, 0)
