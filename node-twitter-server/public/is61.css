@@ -1,1 +1,68 @@
-.tweet .text  { font-family: "Helvetica"; font-size: 3em; font-weight: bold;}
+body {
+    text-align: center;
+    background-color: #7b7b7b;
+    font-family: "Helvetica Neue";
+}
+#clip {
+    height: 100%;
+    width: 100%;
+    overflow: auto;
+}
+#tweet-strip {
+    position: relative;
+    width: 60%;
+    margin: 0 auto;
+    padding-top: 2em;
+    text-align: left;
+    height: 100%;
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+}
+
+.tweet-container {
+    padding: 1em 0;
+    width: 100%;
+    overflow: hidden;
+/*    background-color: #E11F26; */
+}
+
+.tweet-container .identifier {
+/*  
+    background-color: #CCC;
+    border: 5px solid #AAA;
+    border-radius: 10px;
+*/
+    margin: 2em 0;
+}
+
+.identifier img {
+    height: 48px;
+    width: 48px;
+    float: left;
+    box-shadow: -1 -1px 1px #AAA;
+}
+
+.identifier .from_user {
+    font-size: 2em;
+    color: #333;
+    font-weight: bold;
+    float: left;
+    margin-left: 10px;
+    text-shadow: 0 -1px 1px #AAA;
+}
+.tweet-container .tweet {
+    clear: both;
+    overflow: auto;
+}
+.tweet .text  {
+    font-size: 2em;
+    font-weight: bold;
+    color: #111;
+    font-family: "Garamond";
+    margin: .5em 0;
+    text-shadow: 0 -1px 1px #AAA;
+}
+.tweet .created_at {
+    font-family: "Garamond";
+}
