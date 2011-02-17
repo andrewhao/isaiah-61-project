@@ -4,7 +4,7 @@ socket.on('connect', function(){
   socket.send('Client notified: connected');
 });
 socket.on('message', function(data){
-  $('#message-container').prepend('<p>' + data.text + '</p>');
+  $('#tweet-strip').append('<div class="tweet-container">' + data.text + '</div>');
   console.log(data);
 });
 socket.on('disconnect', function(){
