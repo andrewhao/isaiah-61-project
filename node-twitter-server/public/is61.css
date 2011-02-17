@@ -1,18 +1,28 @@
 body {
     text-align: center;
-    background-color: #7b7b7b;
+/*    background-color: #7b7b7b;*/
+    background-color: #FFF;
     font-family: "Helvetica Neue";
+    position: relative;
+    padding: 0;
+    margin: 0;
 }
-#clip {
+#highlight-overlay {
+    position: absolute;
     height: 100%;
     width: 100%;
-    overflow: auto;
+    z-index: 10;
 }
+#tweet-clip {
+    width: 100%;
+    overflow: hidden;
+}
+
 #tweet-strip {
     position: relative;
-    width: 60%;
-    margin: 0 auto;
-    padding-top: 2em;
+    width: 700px;
+    margin: 0 0 0 500px;
+/*    padding-top: 400px; */
     text-align: left;
     height: 100%;
     -webkit-transition: all 0.3s ease-in-out;
@@ -44,7 +54,7 @@ body {
 }
 
 .identifier .from_user {
-    font-size: 2em;
+    font-size: 1.5em;
     color: #333;
     font-weight: bold;
     float: left;
@@ -53,15 +63,14 @@ body {
 }
 .tweet-container .tweet {
     clear: both;
-    overflow: auto;
+    overflow: hidden;
 }
 .tweet .text  {
     font-size: 2em;
     font-weight: bold;
-    color: #111;
-    font-family: "Garamond";
+    color: #555;
     margin: .5em 0;
-    text-shadow: 0 -1px 1px #AAA;
+    text-shadow: 0 -1px -1px #333;
 }
 .tweet .created_at {
     font-family: "Garamond";

@@ -1,11 +1,45 @@
 var tweetQueue = [];
 var totalScrollDistance = 0;
+
+var windowHeight = $(window).height() - 4;
+var windowWidth = $(window).width() - 5;
+
 var socket = new io.Socket();
 $('#clip').attr({height: $(window).height()});
 socket.connect();
 socket.on('connect', function(){ 
   socket.send('Client notified: connected');
 });
+
+var paper = null;
+
+$(document).ready(function () {
+    console.log('im ready');
+    $('#highlight-overlay').attr({
+        height: windowHeight,
+        width: windowWidth
+    });
+    $('#tweet-clip').css({
+        height: windowHeight
+    });
+    
+    // Draw overlay SVG obj
+    paper = Raphael('highlight-overlay', windowWidth, windowHeight);
+    overlayPathPoints = [
+        [0, 0],
+        [0, windowHeight],
+        [windowWidth, windowHeight],
+        [windowWidth, windowHeight - 300],
+        [0, 0]];
+    overlayPathStr = 'M0 0'
+    for (i in overlayPathPoints) {
+        p = overlayPathPoints[i];
+        overlayPathStr += 'L' + p[0] + ' ' + p[1];
+    }
+    var c = paper.path(overlayPathStr);
+    c.attr({fill: 'red', opacity: 0.5, stroke: 'none'});
+})
+
 socket.on('message', function(data){
   if (data == "") {
     return;
