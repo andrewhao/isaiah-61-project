@@ -56,9 +56,9 @@ class Fader(threading.Thread):
                 # Flicker.
                 for i in range(2):
                     a.analog_write(int(self.pinNum), 255)
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                     a.analog_write(int(self.pinNum), 0)
-                    time.sleep(0.1)
+                    time.sleep(0.05 )
                 
                 
                 # Turn off all arrays.

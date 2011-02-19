@@ -66,10 +66,11 @@ socket.on('message', function(data){
   console.log('newly added el height is ' + elHeight);
   
   var isInViewport = newlyAddedEl.offset().top <= $(window).height();
-  
+
   console.log('is it in viewport?: ' + isInViewport);
   
   if (!isInViewport) {
+      socket.send('tweet_offscreen');
       var nextTweet = tweetQueue.shift();
       console.log('shifted queue. top should be: ' + nextTweet.h + ', ' + nextTweet.u)
       totalScrollDistance += nextTweet.h;
@@ -78,9 +79,10 @@ socket.on('message', function(data){
       slideTweetStrip(-totalScrollDistance);
   }
   else {
-      console.log('visible')
+      socket.send('tweet_onscreen');
+      console.log('XXX visible');
   }
-  console.log(data);
+ // console.log(data);
 });
 socket.on('disconnect', function(){
     socket.send('disconnecting!')

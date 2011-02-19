@@ -41,6 +41,16 @@ AggregateQueue.prototype.shift = function() {
 }
 
 /**
+ * Fills the queue with enough search terms.
+ */
+AggregateQueue.prototype.fill = function() {
+    // Primes the queue with a proper initial set.
+    for (var i in this.queueList) {
+        this.queueList[i].checkLength();
+    }
+}
+
+/**
  * TweetQueue
  *
  * A simple queue, modified to be evented and emit a "low"
@@ -89,46 +99,43 @@ TweetQueue.prototype.checkLength = function() {
 /**
  * Setting up the AggregateQueue
  */
- 
 // References to specific queues.
 var painQueue = new TweetQueue();
 var griefQueue = new TweetQueue();
-var justiceQueue = new TweetQueue();
+var injusticeQueue = new TweetQueue();
 var oaklandQueue = new TweetQueue();
 
 // I don't want to see these.
 var blacklist = ['RT', 'bieb', 'justin'];
 
-var fullQueue = new AggregateQueue([painQueue, griefQueue, justiceQueue, oaklandQueue]);
+var fullQueue = new AggregateQueue([painQueue, injusticeQueue, griefQueue, oaklandQueue]);
 
 var queueSpec = {
     // "bind up the brokenhearted"
-    pain: {
+    'pain': {
         queue: painQueue,
         kw: ["sad", "depressed", "afraid", "trapped","lonely","grief","cry"],
         kw_req: "i feel",
     },
+    // "day of vengeance of our God"
+    'injustice': {
+        queue: injusticeQueue,
+        kw: ["injustice","justice","rape","violence","assault","murder","slavery","corruption","mugged"],
+        kw_req: "",
+    },
     // "oil of gladness instead of mourning"
-    grief: {
+    'grief': {
         queue: griefQueue,
-        kw: ["passed away", "dead","death","decease","grief","RIP", "R.I.P.", "rest in peace"],
+        kw: ["passed away","dead","death","decease","grief","RIP", "R.I.P.", "rest in peace"],
         kw_req: "",
     },
     // "oaks of righteousness"
-    oakland: {
+    'oakland': {
         queue: oaklandQueue,
         kw: ["oakland"],
         kw_req: "",
     },
-    // "day of vengeance of our God"
-    justice: {
-        queue: justiceQueue,
-        kw: ["injustice","justice","rape","violence","assault","murder","slavery","corruption","mugged"],
-        kw_req: "",
-    }
 };
-
-var subject_kw = ["i feel", "i want", "i need", "i%27m"];
 
 // Set up listeners for each queue.
 for (var qtype in queueSpec) {
@@ -139,21 +146,33 @@ for (var qtype in queueSpec) {
         var qd = queueSpec[qtype];
         qd.queue.on('low', function (queueLength) {
             sys.puts('queue ' + qtype + ' is low! refilling...');
-            debugger;
             if (!qd.queue.lock) {
                 // Set the lock.
                 qd.queue.lock = true;
                 /**
                  * Do a twitter search
                  */
-                twit.search(qd.kw_req + " (" + qd.kw.join(' OR ') + ")", {lang: 'en', rpp: 100}, function(data) {
-                    for (var i in data.results) {
+                var numResults = 100
+                twit.search(qd.kw_req + " (" + qd.kw.join(' OR ') + ")", {lang: 'en', rpp: numResults}, function(data) {
+                    
+                    // Choose a subset of results, randomly
+                    var chosens = [];
+                    for (var num_chosen = 0; num_chosen < 20; num_chosen++) {
+
+                        // Choose a random idx that hasn't been chosen before
+                        var i = Math.floor(Math.random()*numResults);
+                        if (chosens.indexOf(i) == -1) {
+                            chosens.push(i);
+                        }
+                    }
+                    
+                    for (var i in chosens) {                        
                         var text = data.results[i].text;
                         
                         // Filter out blacklisted elements
                         var blacklisted = false;
-                        for (var i in blacklist) {
-                            var w = blacklist[i];
+                        for (var b in blacklist) {
+                            var w = blacklist[b];
                             if (text.toLowerCase().indexOf(w.toLowerCase()) != -1) {
                                 blacklisted = true;
                                 break;
@@ -161,18 +180,27 @@ for (var qtype in queueSpec) {
                         }
                         
                         if (!blacklisted) {
-                            qd.queue.push(data.results[i]);
-//                            sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i]));
-//                            sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)
+                            qd.queue.push({
+                                tweet: data.results[i],
+                                tweet_type: qtype
+                            });
+                            // sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i]));
+                            // sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)
                         }
                     }
+                    // sys.puts('chosens is: ' + sys.inspect(chosens));
                 });
+                
+                
                 // Undo the lock
                 qd.queue.lock = false;
             }
         });
     }) (qtype);
 }
+
+// Fill up the queues with starter data.
+fullQueue.fill();
     
 /**
  * Simple web server
@@ -194,8 +222,6 @@ server.listen(8080);
 /**
  * Socket interface to Arduino script.
  */
-var PINS = [3, 5, 6, 9]
-
 var arduino = net.createServer(function (stream) {
     
     // Set a reference to the arduino stream from the socket.
@@ -208,7 +234,7 @@ var arduino = net.createServer(function (stream) {
     
     stream.on('data', function(data) {
         sys.puts('Echoing data from arduino client: ' + sys.inspect(data));
-        stream.write('Echo: ' + data + '\0');
+        boss.sendMessage('arduino', data);
     });
     stream.on('end', function() {
         stream.end();
@@ -224,20 +250,26 @@ websocket.on('connection', function(client){
     
     // Give the EventController a reference to client
     boss.web_socket = client;
-/*    
-    setInterval(function () {
-        var tweet = fullQueue.shift()
-        sys.puts('tweet is: ' + tweet);
-    }, 10000);
-*/
-    // new client is here! 
+
+    // Client talks back.
     client.on('message', function(data){
         sys.puts(sys.inspect('client said:' + data));
-    }); 
+        boss.sendMessage('web', data);
+    });
+    
+    // Oops, we lost the client.
     client.on('disconnect', function(){
         sys.puts(sys.inspect('client disconnected.'))
     });
 });
+
+/** Mapping of queue type to pin output */
+var queuePinMap = {
+    'pain': 3,
+    'injustice': 5,
+    'grief': 6,
+    'oakland': 9,
+}
 
 /**
  * The brains of the whole operation
@@ -249,15 +281,20 @@ function EventDriver() {
     this.web_socket = null;
     this.arduino_socket = null;
     this.dummy_i = 0;
+
+    // Stores return messages from external sources.
+    // Currently of the format <source>:<message>.
+    // Where source = 'web' | 'arduino'
+    this.msg_queue = [];
+
+    // Opens up the LED pulse queue.
+    this.allow_led_pulse = false;
+    
+    // Buffers the LED drain by an offset because
+    // they are offset on the Web UI.
+    this.led_queue = [];
 }
 util.inherits(EventDriver, EE);
-
-EventDriver.prototype.writeArduino = function() {
-    // Test function: send a byte-command. Wait for ack before sending another.
-    sys.puts('Sending dummy i: ' + this.dummy_i);
-    this.arduino_socket.write(PINS[this.dummy_i] + '\0');
-    this.dummy_i = (this.dummy_i + 1) % 4;
-}
 
 /**
  * Checks whether we're properly initialized.
@@ -268,15 +305,56 @@ EventDriver.prototype.isReady = function() {
 }
 
 /**
+ * Add a message to the message queue.
+ *
+ * @param {String} src
+ *   'web' | 'arduino'
+ * @param {String} msg
+ *   Text string
+ */
+EventDriver.prototype.sendMessage = function(src, msg) {
+    this.msg_queue.push(src + ':' + msg);
+}
+
+/**
  * Event loop.
  */
 EventDriver.prototype.tick = function() {
     sys.puts('tick');
+    
+    var msg = this.msg_queue.shift();
+    
+    // The Web client has notified us that the first
+    // tweet has fallen off the screen. This is a signal for us
+    // to prepare to start pulsing the lights in preparation for
+    // the first Web UI slide animation.
+    if (!this.allow_led_pulse && msg == 'web:tweet_offscreen') {
+        sys.puts('shift offscreen!')
+        this.allow_led_pulse = true;
+        v = this.led_queue.shift();
+        v = this.led_queue.shift();
+    }
+    
     // Drain the queue and grab the newest tweet to send.
-    var tweet = fullQueue.shift();
-    if (tweet) {
-        this.web_socket.send(tweet);
-        this.writeArduino();
+    var data = fullQueue.shift();
+    if (data) {
+        
+        sys.puts('led queue is: ' + sys.inspect(this.led_queue))
+        
+        
+        this.web_socket.send(data.tweet);
+        var pin = queuePinMap[data.tweet_type];
+        
+        this.led_queue.push(pin);
+        
+        // If the LED buffer is open, begin shifting pulses.
+        if (this.allow_led_pulse) {
+            var synchronizedPin = this.led_queue.shift();
+            sys.puts('Sending signal to pin: ' + synchronizedPin);        
+            this.arduino_socket.write(synchronizedPin + '\0');
+        } else {
+            this.arduino_socket.write(this.led_queue[0] + '\0');
+        }
     }
 }
 
@@ -285,5 +363,7 @@ boss = new EventDriver();
 setInterval(function() {
     if (boss.isReady()) {
         boss.tick();
+    } else {
+        sys.puts('Still waiting for node + arduino initialization.');
     }
 }, 5000);
