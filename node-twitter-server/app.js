@@ -76,10 +76,10 @@ TweetQueue.prototype.checkLength = function() {
  * Create a twitter stream to the Streaming API
  */
 var twit = new twitter({
-    consumer_key: 'TsVeZVx6Rs3OpRN4UDom6A',
-    consumer_secret: 'RKP5jEu3VzLtJ8WxMFxt3prKUu0grrawqFz3uMw',
-    access_token_key: '12176642-TKySLSXlbR5mbbx0daBqtPtZKkUwxFlpA5GxY7u7a',
-    access_token_secret: 'fcoeXCzFvZaDYScVyJRuqEpy5jC9SjS8U6V5aZkYptE'
+    consumer_key: 'LsX6TUMSfwqqUaxfw4Kcsw',
+    consumer_secret: 'O9nD1g0Cuqngl5N1Ij1CoY0G9Nm96ZeOGr2CfQKSXQ',
+    access_token_key: '253928382-gEBAuXYl4jtezGUG7GbPhdxm0b0akm6raI2spd9Y',
+    access_token_secret: 'chLg4V2aTw6saRuoEmnLNFirr1Cq0g0rmQOcqy8Tw'
 });
     
 // Simple web server
@@ -114,7 +114,7 @@ var arduino = net.createServer(function (stream) {
             sys.puts('Sending dummy i: ' + dummy_i);
             stream.write(pins[dummy_i] + '\0');
             dummy_i = (dummy_i + 1) % 4;
-        }, 100)
+        }, 5000)
     });
     stream.on('data', function(data) {
         sys.puts('Echoing data from arduino client: ' + sys.inspect(data));
@@ -137,6 +137,9 @@ websocket.on('connection', function(client){
     var justiceQueue = new TweetQueue();
     var oaklandQueue = new TweetQueue();
     
+    // I don't want to see these.
+    var blacklist = ['RT', 'bieb', 'justin'];
+    
     var queueBoss = new QueueBoss([painQueue, griefQueue, justiceQueue, oaklandQueue], client);
     
     var queueSpec = {
@@ -144,25 +147,21 @@ websocket.on('connection', function(client){
             queue: painQueue,
             kw: ["sad","depressed","afraid","trapped","lonely","grief","cry"],
             kw_req: "i feel",
-            ignore: "RT"
         },
         grief: {
             queue: griefQueue,
             kw: ["passed away", "dead","death","decease","grief","RIP", "R.I.P.", "rest in peace"],
             kw_req: "",
-            ignore: "RT",
         },
         oakland: {
             queue: oaklandQueue,
             kw: ["oakland"],
             kw_req: "",
-            ignore: "RT",
         },
         justice: {
             queue: justiceQueue,
             kw: ["injustice","justice","rape","violence","assault","murder","slavery","corruption","mugged"],
             kw_req: "",
-            ignore: "RT",
         }
     };
     
@@ -170,7 +169,7 @@ websocket.on('connection', function(client){
 
     setInterval(function() {
         queueBoss.drain();
-    }, 1000)
+    }, 5000)
     
     // Set up listeners for each queue.
     for (var qtype in queueSpec) {
@@ -189,7 +188,17 @@ websocket.on('connection', function(client){
                     twit.search(qd.kw_req + " (" + qd.kw.join(' OR ') + ")", {lang: 'en', rpp: 30}, function(data) {
                         for (var i in data.results) {
                             var text = data.results[i].text;
-                            if (text.indexOf(qd.ignore) == -1) {
+                            
+                            var blacklisted = false;
+                            for (var i in blacklist) {
+                                var w = blacklist[i];
+                                if (text.toLowerCase().indexOf(w.toLowerCase()) != -1) {
+                                    blacklisted = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!blacklisted) {
                                 qd.queue.push(data.results[i]);
                                 sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i]));
                                 sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)

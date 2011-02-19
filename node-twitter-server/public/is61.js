@@ -1,11 +1,12 @@
 var tweetQueue = [];
 var totalScrollDistance = 0;
 
-var windowHeight = $(window).height() - 4;
-var windowWidth = $(window).width() - 5;
+var windowHeight = $(window).height() - 3;
+var windowWidth = $(window).width() - 3;
+var clippedWindowHeight = windowHeight - 40;
+var clippedWindowWidth = windowWidth - 40;
 
 var socket = new io.Socket();
-$('#clip').attr({height: $(window).height()});
 socket.connect();
 socket.on('connect', function(){ 
   socket.send('Client notified: connected');
@@ -15,29 +16,38 @@ var paper = null;
 
 $(document).ready(function () {
     console.log('im ready');
-    $('#highlight-overlay').attr({
+    $('#highlight-overlay').css({
         height: windowHeight,
-        width: windowWidth
+        width: windowWidth,
+        top: 0,
+        left: 0
     });
     $('#tweet-clip').css({
-        height: windowHeight
+        height: clippedWindowHeight
+    });
+    $('#content, #first-tweet-overlay').css({
+        height: clippedWindowHeight,
+        width: clippedWindowWidth
     });
     
     // Draw overlay SVG obj
     paper = Raphael('highlight-overlay', windowWidth, windowHeight);
     overlayPathPoints = [
-        [0, 0],
+        [0, 50],
         [0, windowHeight],
         [windowWidth, windowHeight],
         [windowWidth, windowHeight - 300],
-        [0, 0]];
+        [0, 50]];
     overlayPathStr = 'M0 0'
     for (i in overlayPathPoints) {
         p = overlayPathPoints[i];
         overlayPathStr += 'L' + p[0] + ' ' + p[1];
     }
     var c = paper.path(overlayPathStr);
-    c.attr({fill: 'red', opacity: 0.5, stroke: 'none'});
+    c.attr({fill: 'red', opacity: 0.7, stroke: 'none'});
+    
+    // Animate DOM obj.
+    $('#first-tweet-overlay .tweet-container').css("-webkit-")
 })
 
 socket.on('message', function(data){
@@ -81,7 +91,6 @@ socket.on('disconnect', function(){
  */
 var slideTweetStrip = function(toY) {
     $('#tweet-strip').css("-webkit-transform","translate(0px, " + toY + "px)");
-//    $('#tweet-strip').scrollTop(toY);
 }
 
 // Define templates

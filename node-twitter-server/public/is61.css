@@ -4,14 +4,35 @@ body {
     background-color: #FFF;
     font-family: "Helvetica Neue";
     position: relative;
-    padding: 0;
+    padding: 20px;
     margin: 0;
 }
+#first-tweet-overlay {
+    z-index: 11;
+    top: 20px;
+    left: 20px;
+    position: absolute;
+    text-align: left;
+}
+
+#first-tweet-overlay .tweet-container {
+    left: -18em;
+    position: absolute;
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    -moz-transform: skew(25deg);
+    -webkit-transform: skew(25deg);
+}
+
 #highlight-overlay {
     position: absolute;
     height: 100%;
     width: 100%;
     z-index: 10;
+}
+#content {
+    background-color: #BBB;
 }
 #tweet-clip {
     width: 100%;
@@ -20,8 +41,8 @@ body {
 
 #tweet-strip {
     position: relative;
-    width: 700px;
-    margin: 0 0 0 500px;
+    width: 500px;
+    margin: 0 0 0 450px;
 /*    padding-top: 400px; */
     text-align: left;
     height: 100%;
@@ -30,14 +51,14 @@ body {
     -o-transition: all 0.3s ease-in-out;
 }
 
-.tweet-container {
+#tweet-strip .tweet-container {
     padding: 1em 0;
     width: 100%;
     overflow: hidden;
 /*    background-color: #E11F26; */
 }
 
-.tweet-container .identifier {
+#tweet-strip .tweet-container .identifier {
 /*  
     background-color: #CCC;
     border: 5px solid #AAA;
@@ -46,14 +67,14 @@ body {
     margin: 2em 0;
 }
 
-.identifier img {
+#tweet-strip .identifier img {
     height: 48px;
     width: 48px;
     float: left;
     box-shadow: -1 -1px 1px #AAA;
 }
 
-.identifier .from_user {
+#tweet-strip .identifier .from_user {
     font-size: 1.5em;
     color: #333;
     font-weight: bold;
@@ -61,17 +82,17 @@ body {
     margin-left: 10px;
     text-shadow: 0 -1px 1px #AAA;
 }
-.tweet-container .tweet {
+#tweet-strip .tweet-container .tweet {
     clear: both;
     overflow: hidden;
 }
-.tweet .text  {
+#tweet-strip .tweet .text  {
     font-size: 2em;
     font-weight: bold;
     color: #555;
     margin: .5em 0;
     text-shadow: 0 -1px -1px #333;
 }
-.tweet .created_at {
+#tweet-strip .tweet .created_at {
     font-family: "Garamond";
 }
