@@ -2,6 +2,7 @@ import socket
 import firmata
 import time
 import threading
+import Queue
 
 
 lowerBound = 60
@@ -14,10 +15,10 @@ curFader = None
 
 # Fader flag acts as messaging system for active Fader object.
 # setting the flag to True should effectively kill the Fader thread
-stopFaderFlag = threading.Event()
+faderMsgQueue = Queue.Queue()
 
 
-# Three pulses.
+## Pulse pattern. Seven or eight pulses, max
 pinIntensities = range(0, upperBound) + \
                 range(upperBound, lowerBound - 1, -1) + \
                 range(lowerBound, upperBound + 1) + \
@@ -33,38 +34,46 @@ pinIntensities = range(0, upperBound) + \
                 range(lowerBound, upperBound + 1) + \
                 range(upperBound, -1, -1)
 
-
 class Fader(threading.Thread):
     def __init__(self, pinNum):
         print 'init fader with pinnum of %s' % pinNum
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, name="fader")
         self.pinNum = pinNum
 
     def run(self):
         """
         Run the glow effect for 2 cycles and turn off.
         """
-        global stopFaderFlag
         print 'running the fader on pin %s' % self.pinNum
         for i in pinIntensities:
-            # why does it get set here?
-            #print '-%s- in runloop. intensity is: %s. stopFaderFlag is %s' % (self.pinNum, i, stopFaderFlag.is_set())
-            print 'goloop'
             
             # Check the flag to see if we should exit.
-            if stopFaderFlag.is_set():
-                print '-%s- declared intent to stop' % self.pinNum
-                stopFaderFlag.clear()
+            # FIXME Try/catch is horribly expensive.
+            try:
+                stopMsg = faderMsgQueue.get_nowait()
                 print '-%s- stopping fader on pin %s' % (self.pinNum, self.pinNum)
-                print '-%s- I SHOULD STOP HERE. fader flag is %s' % (self.pinNum, stopFaderFlag.is_set())
-                # one line after the return, the thread should die.
+                
+                # Flicker.
+                for i in range(2):
+                    a.analog_write(int(self.pinNum), 255)
+                    time.sleep(0.1)
+                    a.analog_write(int(self.pinNum), 0)
+                    time.sleep(0.1)
+                
+                
+                # Turn off all arrays.
+                writeAllPins(0)
+                faderMsgQueue.task_done()
+                # Thread should die here.
                 return
-            else:
-                print 'nah'
-                print '-%s-- stopFaderFlag is %s' % (self.pinNum, stopFaderFlag.is_set())
+            except Exception:
+                # No stop message, so continue the pulse animation.
                 a.analog_write(int(self.pinNum), i)
-                time.sleep(0.003)
+                # 60ms interval
+                time.sleep(0.006)
+        # Thread should die here.
         print '+%s+ fader was allowed to fade out on pin %s' % (self.pinNum, self.pinNum)
+
 
 # Set up the Arduino interfaces.
 serial_addr = '/dev/tty.usbmodem3d11'
@@ -73,40 +82,48 @@ print ('Connecting to bootloader. Please wait.')
 # Need 2s to make sure the connection is made with the firmware.
 a.delay(2)
 
+# Pins of interest. These happen to be PWM pins on the Arduino Uno.                
+PINS = [3, 5, 6, 9]
+
+def writeAllPins(intensity):
+    """
+    Send an analog intensity signal to all pins.
+    Send writeAllPins(0) to turn off all lights.
+    """
+    for pin in PINS:
+        a.analog_write(pin, intensity);
+        
+
 # Set up the socket interface to nodejs server.
 hostname = 'localhost'
 port = 7000
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((hostname, port))
 
+
 # Listen on socket and drain when it's time.
-#
-# HACK! A single driver loop both controls the fade function on the LED pin,
-# and drains the socket and switches pinouts.
 while True:
-    print 'top of main runloop'
     
     # read 2-byte pin command at a time (pin + NULL).
     data = s.recv(2);
-#    assert data, 'No data found on socket'
+    
+    # Keep polling.
     if not data:
         continue
 
-    print '=== all data recv was: %s' % data
-#    assert len(data) == 2, 'Only two bytes expected on socket queue.'
+    assert len(data) == 2, 'Only two bytes expected on socket queue.'
 
     pinNum = data[0]
-    print 'pin to pulse is: %s' % pinNum
+    print 'currently pulsing pin %s.' % pinNum
 
-    print 'threads are: %s' % threading.enumerate()
-    #assert threading.active_count() == 1, 'all child threads should be dead'
-
-    # stop the current fader
     if curFader:
-        stopFaderFlag.set()
-        curFader.wait()
+        # Putting a message on the queue will be consumed by the
+        # Fader thread which will cause it to die.
+        faderMsgQueue.put('stop');
+        # Block until we're sure it's dead.
+        faderMsgQueue.join();
 
-    print 'before I start a new Fader, the current state of fader flag is: %s' % stopFaderFlag.is_set()
+    # start a new Fader
     curFader = Fader(pinNum)
     curFader.daemon = True
 

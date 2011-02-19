@@ -194,7 +194,7 @@ server.listen(8080);
 /**
  * Socket interface to Arduino script.
  */
-var pins = [3, 5, 6, 9]
+var PINS = [3, 5, 6, 9]
 
 var arduino = net.createServer(function (stream) {
     
@@ -255,7 +255,7 @@ util.inherits(EventDriver, EE);
 EventDriver.prototype.writeArduino = function() {
     // Test function: send a byte-command. Wait for ack before sending another.
     sys.puts('Sending dummy i: ' + this.dummy_i);
-    this.arduino_socket.write(pins[this.dummy_i] + '\0');
+    this.arduino_socket.write(PINS[this.dummy_i] + '\0');
     this.dummy_i = (this.dummy_i + 1) % 4;
 }
 
@@ -286,4 +286,4 @@ setInterval(function() {
     if (boss.isReady()) {
         boss.tick();
     }
-}, 1000);
+}, 5000);
