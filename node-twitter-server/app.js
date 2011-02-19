@@ -5,7 +5,8 @@ var sys = require('sys'),
     util = require('util'),
     net = require('net'),
     EE = require('events').EventEmitter,
-    twitter = require('twitter');
+    twitter = require('twitter'),
+    _ = require('underscore');
 
 
 /**
@@ -28,6 +29,7 @@ function AggregateQueue(queueList) {
     EE.call(this);
     this.queueList = queueList;
     this.currentIdx = 0;
+    this.counter = 0;
 }
 util.inherits(AggregateQueue, EE);
 
@@ -37,6 +39,7 @@ AggregateQueue.prototype.shift = function() {
     this.emit('shift');
     var data = this.queueList[this.currentIdx].shift();
     this.currentIdx = (this.currentIdx + 1) % this.queueList.length;
+    this.counter += 1
     return data;
 }
 
@@ -143,8 +146,17 @@ for (var qtype in queueSpec) {
     // http://meshfields.de/event-listeners-for-loop/
     // Binds the queue spec to the scope in the closure.
     (function(qtype) {
+        
         var qd = queueSpec[qtype];
         qd.queue.on('low', function (queueLength) {
+            
+            // Not all keywords will take place in the search.
+            // Weight their appearances in the search each time.
+            // Each search term has a 1/3 probability of turning up.
+            if (qtype != 'oakland') {
+                temp_kw = qd.kw.filter(function(k) { return Math.random() < 0.3; });                
+            }
+            
             sys.puts('queue ' + qtype + ' is low! refilling...');
             if (!qd.queue.lock) {
                 // Set the lock.
@@ -271,6 +283,9 @@ var queuePinMap = {
     'oakland': 9,
 }
 
+var pins = [3, 5, 6, 9];
+var dummy_i = 0;
+
 /**
  * The brains of the whole operation
  *
@@ -280,7 +295,6 @@ function EventDriver() {
     EE.call(this);
     this.web_socket = null;
     this.arduino_socket = null;
-    this.dummy_i = 0;
 
     // Stores return messages from external sources.
     // Currently of the format <source>:<message>.
@@ -341,6 +355,12 @@ EventDriver.prototype.tick = function() {
         
         sys.puts('led queue is: ' + sys.inspect(this.led_queue))
         
+        /* rig this to test it against expected values */
+        if (queuePinMap[data.tweet_type] != pins[(fullQueue.counter-1) % 4]) {
+            sys.puts('WTF');
+            sys.puts(queuePinMap[data.tweet_type] + ' vs ' + pins[(fullQueue.counter-1) % 4])
+            debugger;
+        }
         
         this.web_socket.send(data.tweet);
         var pin = queuePinMap[data.tweet_type];

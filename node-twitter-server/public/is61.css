@@ -82,11 +82,21 @@ body {
     margin-left: 10px;
     text-shadow: 0 -1px 1px #AAA;
 }
+
+#tweet-strip .tweet-container {
+}
+
 #tweet-strip .tweet-container .tweet {
     clear: both;
     overflow: hidden;
 }
+
+#tweet-strip .tweet .text:hover {
+    color: #CCC;
+}
+
 #tweet-strip .tweet .text  {
+    -webkit-transition: all 1s ease-in-out;
     font-size: 2em;
     font-weight: bold;
     color: #555;

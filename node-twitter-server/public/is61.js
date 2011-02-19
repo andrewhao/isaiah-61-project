@@ -59,7 +59,8 @@ socket.on('message', function(data){
   if (elHeight != null) {
       tweetQueue.push({
           h: elHeight,
-          u: data.from_user
+          u: data.from_user,
+          id: data.id_str
       });
   }
 
@@ -77,6 +78,7 @@ socket.on('message', function(data){
       console.log('total scroll distance is: ' + totalScrollDistance)
       console.log('tweetQueue is:' + tweetQueue)
       slideTweetStrip(-totalScrollDistance);
+      transitionTopTweet(nextTweet);
   }
   else {
       socket.send('tweet_onscreen');
@@ -93,6 +95,15 @@ socket.on('disconnect', function(){
  */
 var slideTweetStrip = function(toY) {
     $('#tweet-strip').css("-webkit-transform","translate(0px, " + toY + "px)");
+}
+
+/**
+ * @param tweetData
+ *  The data array containing tweet information.
+ */
+var transitionTopTweet = function(tweetData) {
+    var tweet_dom = $('#tweet_' + tweetData.id + ' .text');
+    tweet_dom.css("color", "#E11F26");
 }
 
 // Define templates
