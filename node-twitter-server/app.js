@@ -264,10 +264,11 @@ websocket.on('connection', function(client){
     boss.web_socket = client;
 
     // Client talks back.
-    client.on('message', function(data){
+/*    client.on('message', function(data){
         sys.puts(sys.inspect('client said:' + data));
         boss.sendMessage('web', data);
     });
+    */
     
     // Oops, we lost the client.
     client.on('disconnect', function(){
@@ -295,6 +296,10 @@ function EventDriver() {
     EE.call(this);
     this.web_socket = null;
     this.arduino_socket = null;
+    
+    // Flag storing whether the first tweet has been pushed yet.
+    // This helps us keep track of how to dispose of the first tweet.
+    this.discardFirstTweet = false;
 
     // Stores return messages from external sources.
     // Currently of the format <source>:<message>.
@@ -306,6 +311,7 @@ function EventDriver() {
     
     // Buffers the LED drain by an offset because
     // they are offset on the Web UI.
+    // Initialize with pin 13. Dummy throwaway.
     this.led_queue = [];
 }
 util.inherits(EventDriver, EE);
@@ -336,44 +342,74 @@ EventDriver.prototype.sendMessage = function(src, msg) {
 EventDriver.prototype.tick = function() {
     sys.puts('tick');
     
-    var msg = this.msg_queue.shift();
-    
-    // The Web client has notified us that the first
-    // tweet has fallen off the screen. This is a signal for us
-    // to prepare to start pulsing the lights in preparation for
-    // the first Web UI slide animation.
-    if (!this.allow_led_pulse && msg == 'web:tweet_offscreen') {
-        sys.puts('shift offscreen!')
-        this.allow_led_pulse = true;
-        v = this.led_queue.shift();
-        v = this.led_queue.shift();
-    }
-    
     // Drain the queue and grab the newest tweet to send.
     var data = fullQueue.shift();
     if (data) {
         
-        sys.puts('led queue is: ' + sys.inspect(this.led_queue))
-        
         /* rig this to test it against expected values */
         if (queuePinMap[data.tweet_type] != pins[(fullQueue.counter-1) % 4]) {
-            sys.puts('WTF');
+            sys.puts('======== WTF! =========');
             sys.puts(queuePinMap[data.tweet_type] + ' vs ' + pins[(fullQueue.counter-1) % 4])
             debugger;
         }
         
-        this.web_socket.send(data.tweet);
+        // So here's the tricky part. We send the data to the Web browser and we
+        // wait for a signal. Then we wait for the browser to tell us whether the tweet
+        // is onscreen.
+        this.web_socket.send(data);
+        
         var pin = queuePinMap[data.tweet_type];
         
         this.led_queue.push(pin);
         
+        // FIXME. A rudimentary condition variable
+        var waitingForSocketResponse = true;
+        var driver = this;
+        
+        this.web_socket.on('message', function(msg) {
+            
+            //sys.puts(sys.inspect('client said:' + msg));
+            
+            var msgParts = msg.split(':');
+            var clientType = msgParts[0];
+            var clientMsg = msgParts[1];
+            var tweetId = msgParts[2];
+
+            // The Web client has notified us that the first
+            // tweet has fallen off the screen. This is a signal for us
+            // to prepare to start pulsing the lights in preparation for
+            // the first Web UI slide animation.
+            if (!driver.allow_led_pulse && clientMsg == 'tweet_offscreen') {
+                sys.puts('shift offscreen!');
+                driver.allow_led_pulse = true;                    
+                sys.puts('led queue before shift is: ' + sys.inspect(driver.led_queue))
+            }
+            
+            waitingForSocketResponse = false;
+        });
+
+        // FIXME Is there some way to make sure the code above executes sequentially?
+        // Wow. Spin wait? That's dumb. Callback?
+        while(true) {
+            if (waitingForSocketResponse) {
+                break;
+            } else {
+                // do nothing                
+            }
+        }
+        
         // If the LED buffer is open, begin shifting pulses.
         if (this.allow_led_pulse) {
+            if (!this.discardFirstTweet) {
+                v = this.led_queue.shift();
+                this.discardFirstTweet = true;
+            }
             var synchronizedPin = this.led_queue.shift();
             sys.puts('Sending signal to pin: ' + synchronizedPin);        
             this.arduino_socket.write(synchronizedPin + '\0');
         } else {
-            this.arduino_socket.write(this.led_queue[0] + '\0');
+            // Else peek at the beginning.
+//            this.arduino_socket.write(this.led_queue[0] + '\0');
         }
     }
 }

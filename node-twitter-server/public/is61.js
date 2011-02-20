@@ -54,13 +54,14 @@ socket.on('message', function(data){
   if (data == "") {
     return;
   }
-  var newlyAddedEl = $.tmpl( "tweet", data ).appendTo( "#tweet-strip" );
+  var newlyAddedEl = $.tmpl( "tweet", data.tweet ).appendTo( "#tweet-strip" );
   var elHeight = newlyAddedEl.outerHeight();
   if (elHeight != null) {
       tweetQueue.push({
           h: elHeight,
-          u: data.from_user,
-          id: data.id_str
+          u: data.tweet.from_user,
+          id: data.tweet.id_str,
+          type: data.tweet_type
       });
   }
 
@@ -71,8 +72,11 @@ socket.on('message', function(data){
   console.log('is it in viewport?: ' + isInViewport);
   
   if (!isInViewport) {
-      socket.send('tweet_offscreen');
       var nextTweet = tweetQueue.shift();
+
+      // Message the client. This allows the client to go ahead and send the right tweet out.
+      socket.send('web:tweet_offscreen:'+nextTweet.id);
+      
       console.log('shifted queue. top should be: ' + nextTweet.h + ', ' + nextTweet.u)
       totalScrollDistance += nextTweet.h;
       console.log('total scroll distance is: ' + totalScrollDistance)
@@ -81,7 +85,7 @@ socket.on('message', function(data){
       transitionTopTweet(nextTweet);
   }
   else {
-      socket.send('tweet_onscreen');
+      socket.send('web:tweet_onscreen:'+data.tweet.id_str);
       console.log('XXX visible');
   }
  // console.log(data);
