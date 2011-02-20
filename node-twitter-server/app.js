@@ -200,9 +200,7 @@ for (var qtype in queueSpec) {
                             // sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)
                         }
                     }
-                    // sys.puts('chosens is: ' + sys.inspect(chosens));
                 });
-                
                 
                 // Undo the lock
                 qd.queue.lock = false;
@@ -313,6 +311,8 @@ function EventDriver() {
     // they are offset on the Web UI.
     // Initialize with pin 13. Dummy throwaway.
     this.led_queue = [];
+    
+    this.current_tweet_id = null;
 }
 util.inherits(EventDriver, EE);
 
@@ -360,7 +360,7 @@ EventDriver.prototype.tick = function() {
         
         var pin = queuePinMap[data.tweet_type];
         
-        this.led_queue.push(pin);
+        this.led_queue.push({ident: data.tweet.id_str, pin: pin});
         
         // FIXME. A rudimentary condition variable
         var waitingForSocketResponse = true;
@@ -368,12 +368,14 @@ EventDriver.prototype.tick = function() {
         
         this.web_socket.on('message', function(msg) {
             
-            //sys.puts(sys.inspect('client said:' + msg));
+            sys.puts(sys.inspect('client said:' + msg));
             
             var msgParts = msg.split(':');
             var clientType = msgParts[0];
             var clientMsg = msgParts[1];
-            var tweetId = msgParts[2];
+            driver.current_tweet_id = msgParts[2];
+            
+            sys.puts(sys.inspect(driver.current_tweet_id));
 
             // The Web client has notified us that the first
             // tweet has fallen off the screen. This is a signal for us
@@ -400,13 +402,48 @@ EventDriver.prototype.tick = function() {
         
         // If the LED buffer is open, begin shifting pulses.
         if (this.allow_led_pulse) {
-            if (!this.discardFirstTweet) {
-                v = this.led_queue.shift();
-                this.discardFirstTweet = true;
-            }
-            var synchronizedPin = this.led_queue.shift();
-            sys.puts('Sending signal to pin: ' + synchronizedPin);        
-            this.arduino_socket.write(synchronizedPin + '\0');
+            var t = {};
+            // Search for the right tweet
+            sys.puts('searching for id of ' + this.current_tweet_id);
+            
+            var f_arr = this.led_queue.filter(function(el) {
+               return el.ident == driver.current_tweet_id;
+            });
+            sys.puts('i found the tweet: ' + sys.inspect(f_arr));
+            t = f_arr[0];
+            sys.puts('Sending signal to pin: ' + t.pin);
+            this.arduino_socket.write(t.pin + '\0');
+            
+            // if (f_arr.length > 0) {
+            //                 sys.puts('i found it.');
+            //                 
+                // shift off till you get there.
+                // while (true) {
+                //     sys.puts('-----shifting-----')
+                //     sys.puts(sys.inspect(t));
+                //     t = driver.led_queue.shift()
+                //     sys.puts(sys.inspect(t));
+                //     sys.puts('-----end shifting-----')
+
+                //         sys.puts('boo')
+                //         return;
+                    // if (t.ident == driver.current_tweet_id) {
+                    //     sys.puts('found ident!' + t.ident);
+                    //     break;
+                    //  } 
+                // }
+                // if (!this.discardFirstTweet) {
+                //     v = this.led_queue.shift();
+                //     this.discardFirstTweet = true;
+                // }
+                // var synchronizedPin = this.led_queue.shift();
+            //     sys.puts('t is: ' + sys.inspect(t));
+            //     sys.puts('Sending signal to pin: ' + t.pin);
+            //     this.arduino_socket.write(t.pin + '\0');
+            // } else {
+            //     sys.puts('uh oh!!!!')
+            // }
+            
         } else {
             // Else peek at the beginning.
 //            this.arduino_socket.write(this.led_queue[0] + '\0');

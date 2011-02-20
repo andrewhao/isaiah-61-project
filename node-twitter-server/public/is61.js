@@ -61,7 +61,8 @@ socket.on('message', function(data){
           h: elHeight,
           u: data.tweet.from_user,
           id: data.tweet.id_str,
-          type: data.tweet_type
+          type: data.tweet_type,
+          data: data
       });
   }
 
@@ -72,17 +73,23 @@ socket.on('message', function(data){
   console.log('is it in viewport?: ' + isInViewport);
   
   if (!isInViewport) {
+      
       var nextTweet = tweetQueue.shift();
+      var nextNextTweet = tweetQueue[0];
+      var nextNextNextTweet = tweetQueue[1];
 
       // Message the client. This allows the client to go ahead and send the right tweet out.
-      socket.send('web:tweet_offscreen:'+nextTweet.id);
+      socket.send('web:tweet_offscreen:'+nextNextNextTweet.id);
       
       console.log('shifted queue. top should be: ' + nextTweet.h + ', ' + nextTweet.u)
       totalScrollDistance += nextTweet.h;
       console.log('total scroll distance is: ' + totalScrollDistance)
       console.log('tweetQueue is:' + tweetQueue)
+      
       slideTweetStrip(-totalScrollDistance);
-      transitionTopTweet(nextTweet);
+      transitionTopTweet(nextNextTweet.data);
+      
+      //console.log('top tweet should be from: '+nextNextTweet.u)
   }
   else {
       socket.send('web:tweet_onscreen:'+data.tweet.id_str);
