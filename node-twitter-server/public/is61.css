@@ -8,22 +8,70 @@ body {
     margin: 0;
 }
 #first-tweet-overlay {
+    display: none;
     z-index: 11;
     top: 20px;
     left: 20px;
     position: absolute;
-    text-align: left;
+    opacity: 0.9;
+    text-align: center;
+    background-color:#333;
+    font-family: "Garamond";
+    font-size: 1.5em;
 }
 
 #first-tweet-overlay .tweet-container {
-    left: -18em;
-    position: absolute;
-    -webkit-transition: all 0.3s ease-in-out;
-    -moz-transition: all 0.3s ease-in-out;
-    -o-transition: all 0.3s ease-in-out;
-    -moz-transform: skew(25deg);
-    -webkit-transform: skew(25deg);
+    width: 40%;
+    margin: 10em auto;
+    text-align: left;
+    color: #FFF !important;
+    opacity: 1;
 }
+
+#first-tweet-overlay .tweet-container .identifier {
+/*  
+    background-color: #CCC;
+    border: 5px solid #AAA;
+    border-radius: 10px;
+*/
+    margin: 2em 0;
+}
+
+#first-tweet-overlay .identifier img {
+    height: 48px;
+    width: 48px;
+    float: left;
+}
+
+#first-tweet-overlay .identifier .from_user {
+    font-size: 1.5em;
+    color: #FFF;
+    font-weight: bold;
+    float: left;
+    margin-left: 10px;
+}
+
+
+#first-tweet-overlay .tweet-container .tweet {
+    clear: both;
+    overflow: hidden;
+}
+
+#first-tweet-overlay .tweet .text:hover {
+    color: #CCC;
+}
+
+#first-tweet-overlay .tweet .text  {
+    -webkit-transition: all 1s ease-in-out;
+    font-size: 2em;
+    font-weight: bold;
+    color: #FFF;
+    margin: .5em 0;
+}
+#first-tweet-overlay .tweet .created_at {
+    font-family: "Garamond";
+}
+
 
 #highlight-overlay {
     position: absolute;
@@ -51,14 +99,14 @@ body {
     -o-transition: all 0.3s ease-in-out;
 }
 
-#tweet-strip .tweet-container {
+.tweet-container {
     padding: 1em 0;
     width: 100%;
     overflow: hidden;
 /*    background-color: #E11F26; */
 }
 
-#tweet-strip .tweet-container .identifier {
+.tweet-container .identifier {
 /*  
     background-color: #CCC;
     border: 5px solid #AAA;
@@ -67,14 +115,14 @@ body {
     margin: 2em 0;
 }
 
-#tweet-strip .identifier img {
+.identifier img {
     height: 48px;
     width: 48px;
     float: left;
     box-shadow: -1 -1px 1px #AAA;
 }
 
-#tweet-strip .identifier .from_user {
+.identifier .from_user {
     font-size: 1.5em;
     color: #333;
     font-weight: bold;
@@ -86,16 +134,16 @@ body {
 #tweet-strip .tweet-container {
 }
 
-#tweet-strip .tweet-container .tweet {
+.tweet-container .tweet {
     clear: both;
     overflow: hidden;
 }
 
-#tweet-strip .tweet .text:hover {
+.tweet .text:hover {
     color: #CCC;
 }
 
-#tweet-strip .tweet .text  {
+.tweet .text  {
     -webkit-transition: all 1s ease-in-out;
     font-size: 2em;
     font-weight: bold;
@@ -103,6 +151,6 @@ body {
     margin: .5em 0;
     text-shadow: 0 -1px -1px #333;
 }
-#tweet-strip .tweet .created_at {
+.tweet .created_at {
     font-family: "Garamond";
 }

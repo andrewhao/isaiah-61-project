@@ -169,7 +169,7 @@ for (var qtype in queueSpec) {
                     
                     // Choose a subset of results, randomly
                     var chosens = [];
-                    for (var num_chosen = 0; num_chosen < 20; num_chosen++) {
+                    for (var num_chosen = 0; num_chosen < 50; num_chosen++) {
 
                         // Choose a random idx that hasn't been chosen before
                         var i = Math.floor(Math.random()*numResults);
@@ -261,12 +261,15 @@ websocket.on('connection', function(client){
     // Give the EventController a reference to client
     boss.web_socket = client;
 
-    // Client talks back.
-/*    client.on('message', function(data){
-        sys.puts(sys.inspect('client said:' + data));
-        boss.sendMessage('web', data);
+    // Twitter live parse.
+    twit.stream('statuses/filter', {follow: '253928382'}, function(stream) {
+        stream.on('data', function (data) {
+            sys.puts(sys.inspect(data));
+            boss.web_socket.send({typ: 'reply', data: data});
+        });
     });
-    */
+    
+
     
     // Oops, we lost the client.
     client.on('disconnect', function(){
@@ -348,7 +351,7 @@ EventDriver.prototype.tick = function() {
         
         /* rig this to test it against expected values */
         if (queuePinMap[data.tweet_type] != pins[(fullQueue.counter-1) % 4]) {
-            sys.puts('======== WTF! =========');
+            sys.puts('======== RUH ROH =========');
             sys.puts(queuePinMap[data.tweet_type] + ' vs ' + pins[(fullQueue.counter-1) % 4])
             debugger;
         }
@@ -356,7 +359,7 @@ EventDriver.prototype.tick = function() {
         // So here's the tricky part. We send the data to the Web browser and we
         // wait for a signal. Then we wait for the browser to tell us whether the tweet
         // is onscreen.
-        this.web_socket.send(data);
+        this.web_socket.send({typ: 'search', data: data});
         
         var pin = queuePinMap[data.tweet_type];
         
@@ -368,14 +371,14 @@ EventDriver.prototype.tick = function() {
         
         this.web_socket.on('message', function(msg) {
             
-            sys.puts(sys.inspect('client said:' + msg));
+//            sys.puts(sys.inspect('client said:' + msg));
             
             var msgParts = msg.split(':');
             var clientType = msgParts[0];
             var clientMsg = msgParts[1];
             driver.current_tweet_id = msgParts[2];
             
-            sys.puts(sys.inspect(driver.current_tweet_id));
+//            sys.puts(sys.inspect(driver.current_tweet_id));
 
             // The Web client has notified us that the first
             // tweet has fallen off the screen. This is a signal for us
@@ -414,39 +417,6 @@ EventDriver.prototype.tick = function() {
             sys.puts('Sending signal to pin: ' + t.pin);
             this.arduino_socket.write(t.pin + '\0');
             
-            // if (f_arr.length > 0) {
-            //                 sys.puts('i found it.');
-            //                 
-                // shift off till you get there.
-                // while (true) {
-                //     sys.puts('-----shifting-----')
-                //     sys.puts(sys.inspect(t));
-                //     t = driver.led_queue.shift()
-                //     sys.puts(sys.inspect(t));
-                //     sys.puts('-----end shifting-----')
-
-                //         sys.puts('boo')
-                //         return;
-                    // if (t.ident == driver.current_tweet_id) {
-                    //     sys.puts('found ident!' + t.ident);
-                    //     break;
-                    //  } 
-                // }
-                // if (!this.discardFirstTweet) {
-                //     v = this.led_queue.shift();
-                //     this.discardFirstTweet = true;
-                // }
-                // var synchronizedPin = this.led_queue.shift();
-            //     sys.puts('t is: ' + sys.inspect(t));
-            //     sys.puts('Sending signal to pin: ' + t.pin);
-            //     this.arduino_socket.write(t.pin + '\0');
-            // } else {
-            //     sys.puts('uh oh!!!!')
-            // }
-            
-        } else {
-            // Else peek at the beginning.
-//            this.arduino_socket.write(this.led_queue[0] + '\0');
         }
     }
 }
@@ -459,4 +429,4 @@ setInterval(function() {
     } else {
         sys.puts('Still waiting for node + arduino initialization.');
     }
-}, 5000);
+}, 10000);
