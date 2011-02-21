@@ -13,12 +13,12 @@ upperBound = 255
 # --------------------------------------------------------------
 curFader = None
 
-# Fader flag acts as messaging system for active Fader object.
-# setting the flag to True should effectively kill the Fader thread
+## Thread communication system for active Fader object.
+# Pushing a 'True' value onto the queue should effectively kill the Fader thread.
 faderMsgQueue = Queue.Queue()
 
 
-## Pulse pattern. Seven or eight pulses, max
+## Pulse pattern. Seven or eight pulses, max.
 pinIntensities = range(0, upperBound) + \
                 range(upperBound, lowerBound - 1, -1) + \
                 range(lowerBound, upperBound + 1) + \
@@ -53,13 +53,12 @@ class Fader(threading.Thread):
                 stopMsg = faderMsgQueue.get_nowait()
                 print '-%s- stopping fader on pin %s' % (self.pinNum, self.pinNum)
                 
-                # Flicker.
-                for i in range(2):
+                # Flicker 3 times.
+                for i in range(3):
                     a.analog_write(int(self.pinNum), 255)
                     time.sleep(0.05)
                     a.analog_write(int(self.pinNum), 0)
                     time.sleep(0.05 )
-                
                 
                 # Turn off all arrays.
                 writeAllPins(0)
@@ -69,7 +68,7 @@ class Fader(threading.Thread):
             except Exception:
                 # No stop message, so continue the pulse animation.
                 a.analog_write(int(self.pinNum), i)
-                # 60ms interval
+                # 6ms interval
                 time.sleep(0.006)
         # Thread should die here.
         print '+%s+ fader was allowed to fade out on pin %s' % (self.pinNum, self.pinNum)
@@ -92,9 +91,11 @@ def writeAllPins(intensity):
     """
     for pin in PINS:
         a.analog_write(pin, intensity);
-        
 
+
+# ----------------------------------------------
 # Set up the socket interface to nodejs server.
+# ----------------------------------------------
 hostname = 'localhost'
 port = 7000
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
