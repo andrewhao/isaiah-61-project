@@ -28,7 +28,6 @@ var twit = new twitter({
 function AggregateQueue(queueList) {
     EE.call(this);
     this.queueList = queueList;
-    this.currentIdx = 0;
     this.counter = 0;
 }
 util.inherits(AggregateQueue, EE);
@@ -37,8 +36,8 @@ util.inherits(AggregateQueue, EE);
 // TODO: randomize
 AggregateQueue.prototype.shift = function() {
     this.emit('shift');
-    var data = this.queueList[this.currentIdx].shift();
-    this.currentIdx = (this.currentIdx + 1) % this.queueList.length;
+    var idx = Math.floor(Math.random() * this.queueList.length);
+    var data = this.queueList[idx].shift();
     this.counter += 1
     return data;
 }
@@ -109,7 +108,7 @@ var injusticeQueue = new TweetQueue();
 var oaklandQueue = new TweetQueue();
 
 // I don't want to see these.
-var blacklist = ['RT', 'bieb', 'justin'];
+var blacklist = ['RT', 'bieb', 'justin', 'fuck', 'shit'];
 
 var fullQueue = new AggregateQueue([painQueue, injusticeQueue, griefQueue, oaklandQueue]);
 
@@ -123,7 +122,7 @@ var queueSpec = {
     // "day of vengeance of our God"
     'injustice': {
         queue: injusticeQueue,
-        kw: ["injustice","justice","rape","violence","assault","murder","slavery","corruption","mugged"],
+        kw: ["injustice","justice","violence","assault","murder","slavery","corruption","mugged"],
         kw_req: "",
     },
     // "oil of gladness instead of mourning"
@@ -154,7 +153,7 @@ for (var qtype in queueSpec) {
             // Weight their appearances in the search each time.
             // Each search term has a 1/3 probability of turning up.
             if (qtype != 'oakland') {
-                temp_kw = qd.kw.filter(function(k) { return Math.random() < 0.3; });                
+                temp_kw = qd.kw.filter(function(k) { return Math.random() < 0.4; });                
             }
             
             sys.puts('queue ' + qtype + ' is low! refilling...');
@@ -174,31 +173,32 @@ for (var qtype in queueSpec) {
                         // Choose a random idx that hasn't been chosen before
                         var i = Math.floor(Math.random()*numResults);
                         if (chosens.indexOf(i) == -1) {
+
+                            var text = data.results[i].text;
+
+                            // Filter out blacklisted elements
+                            var blacklisted = false;
+                            for (var b in blacklist) {
+                                var w = blacklist[b];
+                                if (text.toLowerCase().indexOf(w.toLowerCase()) != -1) {
+                                    blacklisted = true;
+                                    break;
+                                }
+                            }
+
+                            if (!blacklisted) {
+                                qd.queue.push({
+                                    tweet: data.results[i],
+                                    tweet_type: qtype
+                                });
+                            }
+
+                            // Store a record that we've searched for this before.
                             chosens.push(i);
                         }
                     }
                     
                     for (var i in chosens) {                        
-                        var text = data.results[i].text;
-                        
-                        // Filter out blacklisted elements
-                        var blacklisted = false;
-                        for (var b in blacklist) {
-                            var w = blacklist[b];
-                            if (text.toLowerCase().indexOf(w.toLowerCase()) != -1) {
-                                blacklisted = true;
-                                break;
-                            }
-                        }
-                        
-                        if (!blacklisted) {
-                            qd.queue.push({
-                                tweet: data.results[i],
-                                tweet_type: qtype
-                            });
-                            // sys.puts(qtype + ' | pushing tweet: ' + sys.inspect(data.results[i]));
-                            // sys.puts(qtype + ' | new queue length: ' + qd.queue.queue.length)
-                        }
                     }
                 });
                 
@@ -269,8 +269,6 @@ websocket.on('connection', function(client){
         });
     });
     
-
-    
     // Oops, we lost the client.
     client.on('disconnect', function(){
         sys.puts(sys.inspect('client disconnected.'))
@@ -286,7 +284,6 @@ var queuePinMap = {
 }
 
 var pins = [3, 5, 6, 9];
-var dummy_i = 0;
 
 /**
  * The brains of the whole operation
@@ -349,13 +346,6 @@ EventDriver.prototype.tick = function() {
     var data = fullQueue.shift();
     if (data) {
         
-        /* rig this to test it against expected values */
-        if (queuePinMap[data.tweet_type] != pins[(fullQueue.counter-1) % 4]) {
-            sys.puts('======== RUH ROH =========');
-            sys.puts(queuePinMap[data.tweet_type] + ' vs ' + pins[(fullQueue.counter-1) % 4])
-            debugger;
-        }
-        
         // So here's the tricky part. We send the data to the Web browser and we
         // wait for a signal. Then we wait for the browser to tell us whether the tweet
         // is onscreen.
@@ -371,15 +361,11 @@ EventDriver.prototype.tick = function() {
         
         this.web_socket.on('message', function(msg) {
             
-//            sys.puts(sys.inspect('client said:' + msg));
-            
             var msgParts = msg.split(':');
             var clientType = msgParts[0];
             var clientMsg = msgParts[1];
             driver.current_tweet_id = msgParts[2];
             
-//            sys.puts(sys.inspect(driver.current_tweet_id));
-
             // The Web client has notified us that the first
             // tweet has fallen off the screen. This is a signal for us
             // to prepare to start pulsing the lights in preparation for
@@ -405,18 +391,13 @@ EventDriver.prototype.tick = function() {
         
         // If the LED buffer is open, begin shifting pulses.
         if (this.allow_led_pulse) {
-            var t = {};
             // Search for the right tweet
-            sys.puts('searching for id of ' + this.current_tweet_id);
-            
-            var f_arr = this.led_queue.filter(function(el) {
+            var result = this.led_queue.filter(function(el) {
                return el.ident == driver.current_tweet_id;
             });
-            sys.puts('i found the tweet: ' + sys.inspect(f_arr));
-            t = f_arr[0];
+            var t = result[0];
             sys.puts('Sending signal to pin: ' + t.pin);
             this.arduino_socket.write(t.pin + '\0');
-            
         }
     }
 }

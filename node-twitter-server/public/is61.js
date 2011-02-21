@@ -126,8 +126,8 @@ var slideTweetStrip = function(toY) {
  *  The data array containing tweet information.
  */
 var transitionTopTweet = function(topTweet) {
-    var tweet_dom = $('#tweet_' + topTweet.id + ' .text');
-    tweet_dom.css("color", "#E11F26");
+    var tweet_dom = $('#tweet_' + topTweet.tweet.id_str + ' .text');
+    tweet_dom.css({'color': "#E11F26", 'text-shadow': "text-shadow: 0 -1px -1px #EEC"});
 }
 
 // Define templates
