@@ -23,12 +23,11 @@ var twit = new twitter({
  * AggregateQueue
  *
  * A wrapper over multiple queues. Queues are drained in a 
- * (random?) and fair manner.
+ * random manner.
  */
 function AggregateQueue(queueList) {
     EE.call(this);
     this.queueList = queueList;
-    this.counter = 0;
 }
 util.inherits(AggregateQueue, EE);
 
@@ -38,7 +37,6 @@ AggregateQueue.prototype.shift = function() {
     this.emit('shift');
     var idx = Math.floor(Math.random() * this.queueList.length);
     var data = this.queueList[idx].shift();
-    this.counter += 1
     return data;
 }
 
@@ -149,62 +147,52 @@ for (var qtype in queueSpec) {
         var qd = queueSpec[qtype];
         qd.queue.on('low', function (queueLength) {
             
-            // Not all keywords will take place in the search.
-            // Weight their appearances in the search each time.
-            // Each search term has a 1/3 probability of turning up.
-            if (qtype != 'oakland') {
-                temp_kw = qd.kw.filter(function(k) { return Math.random() < 0.4; });                
-            }
-            
-            sys.puts('queue ' + qtype + ' is low! refilling...');
-            if (!qd.queue.lock) {
-                // Set the lock.
-                qd.queue.lock = true;
-                /**
-                 * Do a twitter search
-                 */
-                var numResults = 100
-                twit.search(qd.kw_req + " (" + qd.kw.join(' OR ') + ")", {lang: 'en', rpp: numResults}, function(data) {
-                    
-                    // Choose a subset of results, randomly
-                    var chosens = [];
-                    for (var num_chosen = 0; num_chosen < 50; num_chosen++) {
-
-                        // Choose a random idx that hasn't been chosen before
-                        var i = Math.floor(Math.random()*numResults);
-                        if (chosens.indexOf(i) == -1) {
-
-                            var text = data.results[i].text;
-
-                            // Filter out blacklisted elements
-                            var blacklisted = false;
-                            for (var b in blacklist) {
-                                var w = blacklist[b];
-                                if (text.toLowerCase().indexOf(w.toLowerCase()) != -1) {
-                                    blacklisted = true;
-                                    break;
-                                }
-                            }
-
-                            if (!blacklisted) {
-                                qd.queue.push({
-                                    tweet: data.results[i],
-                                    tweet_type: qtype
-                                });
-                            }
-
-                            // Store a record that we've searched for this before.
-                            chosens.push(i);
-                        }
-                    }
-                    
-                    for (var i in chosens) {                        
-                    }
-                });
+        // Not all keywords will take place in the search.
+        // Weight their appearances in the search each time.
+        // Each search term has a 1/3 probability of turning up.
+        if (qtype != 'oakland') {
+            temp_kw = qd.kw.filter(function(k) { return Math.random() < 0.4; });                
+        }
+        
+        sys.puts('queue ' + qtype + ' is low! refilling...');
+            /**
+             * Do a twitter search
+             */
+            var numResults = 100
+            twit.search(qd.kw_req + " (" + qd.kw.join(' OR ') + ")", {lang: 'en', rpp: numResults}, function(data) {
                 
-                // Undo the lock
-                qd.queue.lock = false;
-            }
+                // Choose a subset of results, randomly
+                var chosens = [];
+                for (var num_chosen = 0; num_chosen < 50; num_chosen++) {
+
+                    // Choose a random idx that hasn't been chosen before
+                    var i = Math.floor(Math.random()*numResults);
+                    if (chosens.indexOf(i) == -1) {
+
+                        var text = data.results[i].text;
+
+                        // Filter out blacklisted elements
+                        var blacklisted = false;
+                        for (var b in blacklist) {
+                            var w = blacklist[b];
+                            if (text.toLowerCase().indexOf(w.toLowerCase()) != -1) {
+                                blacklisted = true;
+                                break;
+                            }
+                        }
+
+                        if (!blacklisted) {
+                            qd.queue.push({
+                                tweet: data.results[i],
+                                tweet_type: qtype
+                            });
+                        }
+
+                        // Store a record that we've searched for this before.
+                        chosens.push(i);
+                    }
+                }
+            });
         });
     }) (qtype);
 }
