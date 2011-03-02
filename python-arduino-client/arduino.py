@@ -1,5 +1,5 @@
 import socket
-import firmata
+import pyduino
 import time
 import threading
 import Queue
@@ -38,27 +38,28 @@ class Fader(threading.Thread):
     def __init__(self, pinNum):
         print 'init fader with pinnum of %s' % pinNum
         threading.Thread.__init__(self, name="fader")
-        self.pinNum = pinNum
+        self.pinNum = int(pinNum)
 
     def run(self):
         """
         Run the glow effect for 2 cycles and turn off.
         """
         print 'running the fader on pin %s' % self.pinNum
-        for i in pinIntensities:
-            
+        for pinVal in pinIntensities:
+
             # Check the flag to see if we should exit.
             # FIXME Try/catch is horribly expensive.
             try:
-                stopMsg = faderMsgQueue.get_nowait()
+                stopMsg = faderMsgQueue.get(False)
                 print '-%s- stopping fader on pin %s' % (self.pinNum, self.pinNum)
                 
                 # Flicker 3 times.
-                for i in range(3):
-                    a.analog_write(int(self.pinNum), 255)
+                for j in range(3):
+                    a.digital[self.pinNum].write(1)
                     time.sleep(0.05)
-                    a.analog_write(int(self.pinNum), 0)
+                    a.digital[self.pinNum].write(0)
                     time.sleep(0.05 )
+
                 
                 # Turn off all arrays.
                 writeAllPins(0)
@@ -67,7 +68,7 @@ class Fader(threading.Thread):
                 return
             except Exception:
                 # No stop message, so continue the pulse animation.
-                a.analog_write(int(self.pinNum), i)
+                a.digital[self.pinNum].write(float(pinVal) / 255)
                 # 6ms interval
                 time.sleep(0.006)
         # Thread should die here.
@@ -75,14 +76,21 @@ class Fader(threading.Thread):
 
 
 # Set up the Arduino interfaces.
-serial_addr = '/dev/tty.usbmodem3d11'
-a = firmata.Arduino(serial_addr)
-print ('Connecting to bootloader. Please wait.')
-# Need 2s to make sure the connection is made with the firmware.
-a.delay(2)
+serial_addr = '/dev/ttyACM1'
+a = pyduino.Arduino(serial_addr)
 
-# Pins of interest. These happen to be PWM pins on the Arduino Uno.                
+# Need 2s to make sure the connection is made with the firmware.
+print 'Connecting to bootloader. Please wait.'
+time.sleep(5)
+a.iterate()
+
+# Pins of interest. These happen to be PWM pins on the Arduino Uno.            
 PINS = [3, 5, 6, 9]
+
+# Set PWM pin modes
+for pin in PINS:
+    a.digital_ports[pin >> 3].set_active(1)
+    a.digital[pin].set_mode(pyduino.DIGITAL_PWM)
 
 def writeAllPins(intensity):
     """
@@ -90,8 +98,7 @@ def writeAllPins(intensity):
     Send writeAllPins(0) to turn off all lights.
     """
     for pin in PINS:
-        a.analog_write(pin, intensity);
-
+        a.digital[pin].write(intensity);
 
 # ----------------------------------------------
 # Set up the socket interface to nodejs server.
@@ -100,7 +107,6 @@ hostname = 'localhost'
 port = 7000
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((hostname, port))
-
 
 # Listen on socket and drain when it's time.
 while True:
@@ -115,12 +121,11 @@ while True:
     assert len(data) == 2, 'Only two bytes expected on socket queue.'
 
     pinNum = data[0]
-    print 'currently pulsing pin %s.' % pinNum
 
     if curFader:
         # Putting a message on the queue will be consumed by the
         # Fader thread which will cause it to die.
-        faderMsgQueue.put('stop');
+        faderMsgQueue.put('stop', False);
         # Block until we're sure it's dead.
         faderMsgQueue.join();
 
