@@ -1,3 +1,4 @@
+require.paths.unshift('../../node_libraries');
 var sys = require('sys'),
     http = require('http'),
     express = require('express'),
@@ -5,9 +6,7 @@ var sys = require('sys'),
     util = require('util'),
     net = require('net'),
     EE = require('events').EventEmitter,
-    twitter = require('twitter'),
-    _ = require('underscore');
-
+    twitter = require('twitter');
 
 /**
  * Create a twitter stream to the Streaming API
